@@ -2,132 +2,118 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>밤하늘 별편지 🌌</title>
+  <title>🌟 밤하늘 별편지</title>
   <style>
     body {
       margin: 0;
+      background: radial-gradient(circle at center, #0b0c2a, #050515);
       overflow: hidden;
-      background: radial-gradient(circle at bottom, #0b0b24 0%, #000010 80%);
       font-family: "Pretendard", sans-serif;
-      color: white;
-      height: 100vh;
     }
 
-    #formContainer {
+    /* 별 스타일 */
+    .star {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: grab;
+      animation: twinkle 2s infinite ease-in-out;
+      box-shadow: 0 0 15px rgba(255,255,255,0.6);
+    }
+
+    @keyframes twinkle {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* 입력 팝업 */
+    #popup {
       position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.15);
-      padding: 12px 18px;
-      border-radius: 14px;
-      backdrop-filter: blur(6px);
-      display: flex;
-      gap: 10px;
-      z-index: 10;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 30px 40px;
+      color: white;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
     }
 
     input, textarea {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 8px;
       border: none;
-      border-radius: 10px;
-      padding: 6px 10px;
       outline: none;
-    }
-
-    textarea {
-      resize: none;
+      font-size: 14px;
     }
 
     button {
+      margin-top: 10px;
+      padding: 10px 16px;
+      border-radius: 8px;
       border: none;
-      background: #ffffffaa;
-      color: #333;
-      padding: 6px 12px;
-      border-radius: 10px;
+      background: #7b6ef6;
+      color: white;
       cursor: pointer;
       transition: 0.2s;
     }
 
     button:hover {
-      background: #fff;
+      background: #988ff9;
     }
 
-    .star {
-      position: absolute;
-      width: 28px;
-      height: 28px;
-      clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 
-                         50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-      cursor: pointer;
-      animation: twinkle 2s infinite ease-in-out;
-    }
-
-    @keyframes twinkle {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.2); }
-    }
-
-    #popup {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(8px);
-      border-radius: 18px;
-      padding: 20px;
+    /* 편지 보기 팝업 */
+    #messageBox {
       display: none;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      z-index: 20;
-      width: 260px;
-    }
-
-    #popup button {
-      margin-top: 10px;
-      background: #fff;
-      color: #000;
-    }
-
-    #resetButton {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(255, 80, 80, 0.8);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      padding: 20px 30px;
+      border-radius: 16px;
+      text-align: center;
+      color: white;
+      min-width: 250px;
+    }
+
+    /* 초기화 버튼 */
+    #resetBtn {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.1);
       color: white;
       border: none;
-      border-radius: 12px;
-      padding: 8px 14px;
+      border-radius: 8px;
+      padding: 8px 12px;
       cursor: pointer;
-      z-index: 10;
     }
 
-    #resetButton:hover {
-      background: rgba(255, 60, 60, 1);
+    #resetBtn:hover {
+      background: rgba(255,255,255,0.3);
     }
   </style>
 </head>
 <body>
-  <div id="formContainer">
-    <input type="text" id="name" placeholder="보내는 사람" />
-    <textarea id="message" rows="1" placeholder="별에 담을 편지"></textarea>
-    <button id="addStar">별 보내기</button>
-  </div>
-
-  <button id="resetButton">🌠 초기화</button>
 
   <div id="popup">
-    <h3 id="popupName"></h3>
-    <p id="popupMessage"></p>
-    <button id="closePopup">닫기</button>
+    <h2>🌟 밤하늘에 별편지 보내기</h2>
+    <input type="text" id="name" placeholder="보내는 사람 이름">
+    <textarea id="message" rows="3" maxlength="60" placeholder="별에 담을 내용을 적어보세요 (최대 60자)"></textarea>
+    <button id="sendBtn">별편지 보내기</button>
   </div>
 
-  <!-- Firebase -->
+  <div id="messageBox"></div>
+  <button id="resetBtn">🗑 전체 초기화</button>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+    import { getDatabase, ref, push, onValue, set, remove, update } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDmuDfVo_NKLLbidliNZ_OW8g-y7qjDq38",
@@ -143,71 +129,79 @@
     const db = getDatabase(app);
     const starsRef = ref(db, "stars");
 
-    const addStarBtn = document.getElementById("addStar");
-    const resetBtn = document.getElementById("resetButton");
     const popup = document.getElementById("popup");
-    const popupName = document.getElementById("popupName");
-    const popupMessage = document.getElementById("popupMessage");
-    const closePopup = document.getElementById("closePopup");
+    const sendBtn = document.getElementById("sendBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const messageBox = document.getElementById("messageBox");
 
-    const colors = ["#AEE6FF", "#E2D2FF", "#FFF4A3", "#FFC4E1"];
+    const pastelColors = ["#BFDFFF", "#FFD6E0", "#D9C6FF", "#FFF7B0"];
 
-    addStarBtn.addEventListener("click", () => {
+    sendBtn.addEventListener("click", () => {
       const name = document.getElementById("name").value.trim();
       const message = document.getElementById("message").value.trim();
       if (!name || !message) return alert("이름과 내용을 모두 입력해주세요!");
 
-      const x = Math.random() * (window.innerWidth - 40);
-      const y = Math.random() * (window.innerHeight - 40);
-      const color = colors[Math.floor(Math.random() * colors.length)];
+      const x = Math.random() * window.innerWidth * 0.8;
+      const y = Math.random() * window.innerHeight * 0.8;
+      const color = pastelColors[Math.floor(Math.random() * pastelColors.length)];
 
       push(starsRef, { name, message, x, y, color });
-      document.getElementById("message").value = "";
+      popup.style.display = "none";
     });
 
+    // 별 생성
     onValue(starsRef, (snapshot) => {
-      document.querySelectorAll(".star").forEach(s => s.remove());
+      document.querySelectorAll(".star").forEach(el => el.remove());
       snapshot.forEach(child => {
-        const { name, message, x, y, color } = child.val();
         const star = document.createElement("div");
-        star.className = "star";
-        star.style.left = `${x}px`;
-        star.style.top = `${y}px`;
-        star.style.background = color;
+        const data = child.val();
+        star.classList.add("star");
+        star.style.background = data.color;
+        star.style.left = data.x + "px";
+        star.style.top = data.y + "px";
+
+        // 클릭 시 메시지 보기
+        star.addEventListener("click", () => {
+          messageBox.innerHTML = `<h4>⭐ ${data.name}</h4><p>${data.message}</p>`;
+          messageBox.style.display = "block";
+          setTimeout(() => (messageBox.style.display = "none"), 4000);
+        });
 
         // 드래그 기능
-        let isDragging = false, offsetX, offsetY;
-        star.addEventListener("mousedown", e => {
+        let offsetX, offsetY, isDragging = false;
+        star.addEventListener("mousedown", (e) => {
           isDragging = true;
           offsetX = e.offsetX;
           offsetY = e.offsetY;
+          star.style.cursor = "grabbing";
         });
-        window.addEventListener("mousemove", e => {
+        document.addEventListener("mousemove", (e) => {
+          if (!isDragging) return;
+          const newX = e.pageX - offsetX;
+          const newY = e.pageY - offsetY;
+          star.style.left = newX + "px";
+          star.style.top = newY + "px";
+        });
+        document.addEventListener("mouseup", () => {
           if (isDragging) {
-            star.style.left = `${e.pageX - offsetX}px`;
-            star.style.top = `${e.pageY - offsetY}px`;
+            update(ref(db, "stars/" + child.key), {
+              x: parseFloat(star.style.left),
+              y: parseFloat(star.style.top)
+            });
           }
-        });
-        window.addEventListener("mouseup", () => isDragging = false);
-
-        // 클릭 시 팝업
-        star.addEventListener("click", () => {
-          popupName.textContent = name + "의 별";
-          popupMessage.textContent = message;
-          popup.style.display = "flex";
+          isDragging = false;
+          star.style.cursor = "grab";
         });
 
         document.body.appendChild(star);
       });
     });
 
-    closePopup.addEventListener("click", () => {
-      popup.style.display = "none";
-    });
-
+    // 전체 초기화
     resetBtn.addEventListener("click", () => {
-      if (confirm("정말 모든 별을 삭제하시겠어요? 🌌")) {
+      if (confirm("정말 모든 별을 삭제할까요? 🌠")) {
         remove(starsRef);
+        alert("모든 별이 사라졌어요 ✨");
       }
     });
   </script>
