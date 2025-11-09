@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🌌 밤하늘 별편지 공유</title>
+<style>
+body {
+  margin:0; overflow:hidden; height:100vh; 
+  background: radial-gradient(circle at 50% 20%, #101935, #060a1f) !important; 
+  color:#fff !important; 
+  font-family:"Noto Sans KR", sans-serif !important;
+}
+canvas { position: fixed; inset:0; z-index:0; }
+.ui { position: relative; z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; text-align:center; gap:12px; transition:opacity 0.6s; }
+.panel { background: rgba(255,255,255,0.08) !important; padding:25px 28px; border-radius:14px; backdrop-filter:blur(8px); box-shadow:0 4px 18px rgba(0,0,0,0.4); width:min(90%,400px);}
+input,textarea { width:100%; margin:6px 0; padding:10px 12px; border-radius:8px; border:none; outline:none; background:rgba(255,255,255,0.1); color:#fff !important; font-size:15px; resize:none; }
+button { border:none; cursor:pointer; font-weight:600; }
+#stage { position:fixed; inset:0; z-index:5; display:none; }
+.star { position:absolute; transform:translate(-50%,-50%) scale(1); cursor:grab; animation:pop 0.6s ease-out; user-select:none; }
+.star:active { cursor:grabbing; }
+@keyframes pop {0% { transform: translate(-50%, -50%) scale(0.2); opacity:0; filter:blur(3px);} 60% { transform: translate(-50%, -50%) scale(1.3); opacity:1; filter:blur(0);} 100% { transform: translate(-50%, -50%) scale(1); } }
+.message-box { position: fixed; top:50%; left:50%; transform:translate(-50%,-50%); background: rgba(255,255,255,0.1); border-radius:12px; padding:20px 25px; backdrop-filter:blur(6px); color:#fff !important; text-align:center; z-index:30; display:none; width:min(80%,300px);}
+.message-box h3 { margin:0 0 8px; }
+.close-btn { margin-top:12px; background:rgba(255,255,255,0.2); border:none; color:#fff !important; border-radius:8px; padding:6px 12px; cursor:pointer;}
+.add-btn { position: fixed; bottom:20px; right:20px; background: linear-gradient(135deg, #e7f0ff,#ffe5f7); border-radius:50%; width:55px; height:55px; font-size:26px; z-index:15; box-shadow:0 0 12px rgba(255,255,255,0.5); }
+#resetStarsBtn { position: fixed; bottom:90px; right:20px; background: linear-gradient(135deg,#ffb3b3,#ffe5b3); border-radius:50%; width:55px; height:55px; font-size:26px; z-index:15; box-shadow:0 0 12px rgba(255,255,255,0.5); }
+</style>
+</head>
+<body>
+<canvas id="starsCanvas"></canvas>
+
+<div class="ui" id="inputUI">
+  <div class="panel">
+    <h2>🌠 밤하늘에 별편지 보내기</h2>
+    <input id="sender" type="text" placeholder="보내는 사람 이름">
+    <textarea id="message" rows="3" maxlength="60" placeholder="별에 담을 내용을 적어보세요 (최대 60자)"></textarea>
+    <button id="sendBtn" style="background: linear-gradient(135deg, #ffe1ed, #d7f0ff); color:#1a1a1a; padding:10px 18px; border-radius:8px;">별편지 보내기</button>
+  </div>
+</div>
+
+<div id="stage"></div>
+
+<div class="message-box" id="msgBox">
+  <h3 id="msgSender"></h3>
+  <p id="msgContent"></p>
+  <button class="close-btn" id="closeMsg">닫기</button>
+</div>
+
+<button class="add-btn" id="addStarBtn" style="display:none;">+</button>
+<button id="resetStarsBtn">🗑️</button>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, remove, update, push } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyChx8ygzVtU8wzyIWWHbshm6VoKNhy-IwI",
+  authDomain: "star-f63a5.firebaseapp.com",
+  databaseURL: "https://star-f63a5-default-rtdb.firebaseio.com",
+  projectId: "star-f63a5",
+  storageBucket: "star-f63a5.firebasestorage.app",
+  messagingSenderId: "333175648309",
+  appId: "1:333175648309:web:bbdecc415f9f907beb417c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// 배경 캔버스
+const canvas = document.getElementById("starsCanvas");
+const ctx = canvas.getContext("2d");
+let w = canvas.width = innerWidth;
+let h = canvas.height = innerHeight;
+window.addEventListener("resize", ()=>{ w=canvas.width=innerWidth; h=canvas.height=innerHeight; });
+const bgStars = Array.from({length:100},()=>({x:Math.random()*w, y:Math.random()*h, r:Math.random()*1.3, a:Math.random()}));
+function drawBackground(){ ctx.clearRect(0,0,w,h); for(const s of bgStars){ ctx.beginPath(); ctx.fillStyle=`rgba(255,255,255,${0.2+0.5*s.a})`; ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); s.a+=(Math.random()-0.5)*0.03;} requestAnimationFrame(drawBackground);}
+drawBackground();
+
+// DOM
+const stage = document.getElementById("stage");
+const inputUI = document.getElementById("inputUI");
+const sendBtn = document.getElementById("sendBtn");
+const senderInput = document.getElementById("sender");
+const messageInput = document.getElementById("message");
+const addStarBtn = document.getElementById("addStarBtn");
+const resetStarsBtn = document.getElementById("resetStarsBtn");
+
+// 색상
+function pastelColor(){ const hue=Math.floor(Math.random()*360); return `hsl(${hue},70%,80%)`; }
+function createStarSVG(color){ 
+  const ns="http://www.w3.org/2000/svg"; const svg=document.createElementNS(ns,"svg"); svg.setAttribute("width","110"); svg.setAttribute("height","110"); svg.setAttribute("viewBox","0 0 100 100");
+  const path=document.createElementNS(ns,"path"); path.setAttribute("d","M50 8 L63 35 Q64 38 68 38 L95 38 Q98 38 96 41 L74 59 Q72 61 73 64 L81 91 Q82 95 78 93 L51 77 Q50 76 49 77 L22 93 Q18 95 19 91 L27 64 Q28 61 26 59 L4 41 Q2 38 5 38 L32 38 Q36 38 37 35 L50 8 Z");
+  path.setAttribute("fill",color); path.setAttribute("filter","drop-shadow(0 0 10px "+color+")"); svg.appendChild(path); return svg;
+}
+
+// 별 생성 + 터치/클릭 이벤트 처리
+function createStar(x,y,sender,message,color,id){
+  const container=document.createElement("div"); container.className="star"; container.style.left=x+"px"; container.style.top=y+"px"; 
+  const svg=createStarSVG(color); container.appendChild(svg); container.dataset.sender=sender; container.dataset.message=message; container.dataset.id=id;
+  stage.appendChild(container);
+
+  // 모바일 터치 및 클릭 이벤트
+  let startX, startY, moved=false;
+  container.addEventListener("mousedown", startDrag);
+  container.addEventListener("touchstart", startDrag);
+  container.addEventListener("click", showMsgIfNotDrag);
+  container.addEventListener("touchend", showMsgIfNotDrag);
+
+  function startDrag(e){
+    e.preventDefault();
+    moved=false;
+    const clientX=e.touches? e.touches[0].clientX:e.clientX;
+    const clientY=e.touches? e.touches[0].clientY:e.clientY;
+    startX=clientX; startY=clientY;
+    container.isDragging=true;
+    window.addEventListener("mousemove",drag); window.addEventListener("mouseup",endDrag);
+    window.addEventListener("touchmove",drag); window.addEventListener("touchend",endDrag);
+  }
+  function drag(e){
+    const clientX=e.touches? e.touches[0].clientX:e.clientX;
+    const clientY=e.touches? e.touches[0].clientY:e.clientY;
+    if(Math.abs(clientX-startX)>3 || Math.abs(clientY-startY)>3) moved=true;
+    container.style.left=clientX+"px"; container.style.top=clientY+"px";
+  }
+  function endDrag(){
+    container.isDragging=false;
+    window.removeEventListener("mousemove",drag); window.removeEventListener("mouseup",endDrag);
+    window.removeEventListener("touchmove",drag); window.removeEventListener("touchend",endDrag);
+    const id=container.dataset.id;
+    if(id) update(ref(db,'stars/'+id),{x:parseFloat(container.style.left),y:parseFloat(container.style.top)});
+  }
+  function showMsgIfNotDrag(){
+    if(!moved) showMessage(sender,message);
+  }
+
+  // 애니메이션
+  container.animate([{transform:"translate(-50%,-50%) scale(0.5)",opacity:0},{transform:"translate(-50%,-50%) scale(1.3)",opacity:1},{transform:"translate(-50%,-50%) scale(1)",opacity:1}],{duration:1000,easing:"ease-out"});
+}
+
+function showMessage(sender,message){ 
+  const box=document.getElementById("msgBox"); 
+  document.getElementById("msgSender").textContent=sender?`💌 ${sender}의 편지`:"💫 익명의 편지"; 
+  document.getElementById("msgContent").textContent=message; 
+  box.style.display="block";
+}
+document.getElementById("closeMsg").addEventListener("click",()=>{document.getElementById("msgBox").style.display="none";});
+
+function addStar(){ 
+  const sender=senderInput.value.trim(); 
+  const message=messageInput.value.trim(); 
+  if(!message) return alert("내용을 입력해주세요!"); 
+  const color=pastelColor(); 
+  const x=Math.random()*w*0.8+w*0.1; 
+  const y=Math.random()*h*0.5+h*0.1; 
+  const newStarRef=push(ref(db,'stars')); 
+  set(newStarRef,{x,y,sender,message,color});
+}
+
+resetStarsBtn.addEventListener("click",()=>{
+  if(confirm("정말 모든 별을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")){ 
+    remove(ref(db,'stars')); 
+    stage.innerHTML=""; 
+  }
+});
+
+sendBtn.addEventListener("click",()=>{
+  addStar(); inputUI.style.opacity="0"; setTimeout(()=>{ inputUI.style.display="none"; stage.style.display="block"; addStarBtn.style.display="block"; },600);
+});
+
+addStarBtn.addEventListener("click",()=>{
+  inputUI.style.display="flex"; inputUI.style.opacity="1"; stage.style.display="none"; addStarBtn.style.display="none"; senderInput.value=""; messageInput.value="";
+});
+
+// Firebase Realtime DB에서 별 가져오기
+onValue(ref(db,'stars'), snapshot=>{
+  stage.innerHTML="";
+  const data=snapshot.val();
+  if(data) Object.entries(data).forEach(([id,s])=>createStar(s.x,s.y,s.sender,s.message,s.color,id));
+});
+
+window.addEventListener("load",()=>{ inputUI.style.display="flex"; stage.style.display="none";});
+</script>
+</body>
+</html>
